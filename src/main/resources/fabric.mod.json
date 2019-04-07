@@ -1,0 +1,13 @@
+{
+	"id": "handystructures",
+	"name": "Handy Structures",
+	"description": "A 1.14 mod adding a command to save and load structures",
+	"version": "1.0.0",
+	"side": "universal",
+	"initializers": [
+		"com.yanis48.handystructures.HandyStructures"
+	],
+	"requires": {
+		"fabric": "*"
+	}
+}
