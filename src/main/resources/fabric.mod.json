@@ -1,13 +1,24 @@
 {
+	"schemaVersion": 1,
 	"id": "handystructures",
+	"version": "1.0.1",
 	"name": "Handy Structures",
 	"description": "A 1.14 mod adding a command to save and load structures",
-	"version": "1.0.0",
-	"side": "universal",
-	"initializers": [
-		"com.yanis48.handystructures.HandyStructures"
+	"authors": [
+		"Yanis48"
 	],
+	"contact": {
+		"homepage": "https://minecraft.curseforge.com/projects/handy-structures",
+		"sources": "https://github.com/Yanis48/HandyStructures"
+	},
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.yanis48.handystructures.HandyStructures"
+		]
+	},
 	"requires": {
+		"fabricloader": ">=0.4.0",
 		"fabric": "*"
 	}
 }
