@@ -14,8 +14,8 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.block.Blocks;
 import net.minecraft.command.arguments.BlockPosArgumentType;
 import net.minecraft.command.arguments.IdentifierArgumentType;
+import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.CommandSource;
-import net.minecraft.server.command.ServerCommandManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.Structure;
@@ -48,20 +48,20 @@ public class StructureCommand {
 	};
 	
 	public static void register(CommandDispatcher<ServerCommandSource> commandDispatcher_1) {
-		commandDispatcher_1.register((ServerCommandManager.literal("structure").requires((serverCommandSource_1) -> {
+		commandDispatcher_1.register((CommandManager.literal("structure").requires((serverCommandSource_1) -> {
 			return serverCommandSource_1.hasPermissionLevel(2);
-		})).then(ServerCommandManager.literal("load").then(ServerCommandManager.argument("name", IdentifierArgumentType.create()).then(ServerCommandManager.argument("pos", BlockPosArgumentType.create()).executes((context) -> {
-			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifierArgument(context, "name"), BlockPosArgumentType.getPosArgument(context, "pos"), 0, "none", true);
-		}).then(ServerCommandManager.argument("rotation", IntegerArgumentType.integer()).suggests(ROTATION_SUGGESTIONS).executes((context) -> {
-			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifierArgument(context, "name"), BlockPosArgumentType.getPosArgument(context, "pos"), IntegerArgumentType.getInteger(context, "rotation"), "none", true);
-		}).then(ServerCommandManager.argument("mirror", StringArgumentType.string()).suggests(MIRROR_SUGGESTIONS).executes((context) -> {
-			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifierArgument(context, "name"), BlockPosArgumentType.getPosArgument(context, "pos"), IntegerArgumentType.getInteger(context, "rotation"), StringArgumentType.getString(context, "mirror"), true);
-		}).then(ServerCommandManager.argument("ignoreEntities", BoolArgumentType.bool()).executes((context) -> {
-			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifierArgument(context, "name"), BlockPosArgumentType.getPosArgument(context, "pos"), IntegerArgumentType.getInteger(context, "rotation"), StringArgumentType.getString(context, "mirror"), BoolArgumentType.getBool(context, "ignoreEntities"));
-		}))))))).then(ServerCommandManager.literal("save").then(ServerCommandManager.argument("from", BlockPosArgumentType.create()).then(ServerCommandManager.argument("to", BlockPosArgumentType.create()).then(ServerCommandManager.argument("name", IdentifierArgumentType.create()).executes((context) -> {
-			return saveStructure(context.getSource(), BlockPosArgumentType.getPosArgument(context, "from"), BlockPosArgumentType.getPosArgument(context, "to"), IdentifierArgumentType.getIdentifierArgument(context, "name"), true);
-		}).then(ServerCommandManager.argument("ignoreEntities", BoolArgumentType.bool()).executes((context) -> {
-			return saveStructure(context.getSource(), BlockPosArgumentType.getPosArgument(context, "from"), BlockPosArgumentType.getPosArgument(context, "to"), IdentifierArgumentType.getIdentifierArgument(context, "name"), BoolArgumentType.getBool(context, "ignoreEntities"));
+		})).then(CommandManager.literal("load").then(CommandManager.argument("name", IdentifierArgumentType.create()).then(CommandManager.argument("pos", BlockPosArgumentType.create()).executes((context) -> {
+			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifier(context, "name"), BlockPosArgumentType.getBlockPos(context, "pos"), 0, "none", true);
+		}).then(CommandManager.argument("rotation", IntegerArgumentType.integer()).suggests(ROTATION_SUGGESTIONS).executes((context) -> {
+			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifier(context, "name"), BlockPosArgumentType.getBlockPos(context, "pos"), IntegerArgumentType.getInteger(context, "rotation"), "none", true);
+		}).then(CommandManager.argument("mirror", StringArgumentType.string()).suggests(MIRROR_SUGGESTIONS).executes((context) -> {
+			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifier(context, "name"), BlockPosArgumentType.getBlockPos(context, "pos"), IntegerArgumentType.getInteger(context, "rotation"), StringArgumentType.getString(context, "mirror"), true);
+		}).then(CommandManager.argument("ignoreEntities", BoolArgumentType.bool()).executes((context) -> {
+			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifier(context, "name"), BlockPosArgumentType.getBlockPos(context, "pos"), IntegerArgumentType.getInteger(context, "rotation"), StringArgumentType.getString(context, "mirror"), BoolArgumentType.getBool(context, "ignoreEntities"));
+		}))))))).then(CommandManager.literal("save").then(CommandManager.argument("from", BlockPosArgumentType.create()).then(CommandManager.argument("to", BlockPosArgumentType.create()).then(CommandManager.argument("name", IdentifierArgumentType.create()).executes((context) -> {
+			return saveStructure(context.getSource(), BlockPosArgumentType.getBlockPos(context, "from"), BlockPosArgumentType.getBlockPos(context, "to"), IdentifierArgumentType.getIdentifier(context, "name"), true);
+		}).then(CommandManager.argument("ignoreEntities", BoolArgumentType.bool()).executes((context) -> {
+			return saveStructure(context.getSource(), BlockPosArgumentType.getBlockPos(context, "from"), BlockPosArgumentType.getBlockPos(context, "to"), IdentifierArgumentType.getIdentifier(context, "name"), BoolArgumentType.getBool(context, "ignoreEntities"));
 		})))))));
 	}
 
