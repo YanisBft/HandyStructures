@@ -21,20 +21,20 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.structure.Structure;
 import net.minecraft.structure.StructureManager;
 import net.minecraft.structure.StructurePlacementData;
-import net.minecraft.text.TranslatableTextComponent;
+import net.minecraft.text.TranslatableText;
+import net.minecraft.util.BlockMirror;
+import net.minecraft.util.BlockRotation;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.Mirror;
-import net.minecraft.util.Rotation;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
-import net.minecraft.world.chunk.ChunkPos;
 
 public class StructureCommand {
 	public static final DynamicCommandExceptionType STRUCTURE_NOT_FOUND_EXCEPTION = new DynamicCommandExceptionType((name) -> {
-		return new TranslatableTextComponent("structure_block.load_not_found", new Object[]{name});
+		return new TranslatableText("structure_block.load_not_found", new Object[]{name});
 	});
 	public static final DynamicCommandExceptionType SAVE_FAILED_EXCEPTION = new DynamicCommandExceptionType((name) -> {
-		return new TranslatableTextComponent("structure_block.save_failure", new Object[]{name});
+		return new TranslatableText("structure_block.save_failure", new Object[]{name});
 	});
 	
 	public static final SuggestionProvider<ServerCommandSource> ROTATION_SUGGESTIONS = (commandContext, suggestionsBuilder) -> {
@@ -47,10 +47,10 @@ public class StructureCommand {
 		return CommandSource.suggestMatching(MIRRORS, suggestionsBuilder);
 	};
 	
-	public static void register(CommandDispatcher<ServerCommandSource> commandDispatcher_1) {
-		commandDispatcher_1.register((CommandManager.literal("structure").requires((serverCommandSource_1) -> {
-			return serverCommandSource_1.hasPermissionLevel(2);
-		})).then(CommandManager.literal("load").then(CommandManager.argument("name", IdentifierArgumentType.create()).then(CommandManager.argument("pos", BlockPosArgumentType.create()).executes((context) -> {
+	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+		dispatcher.register((CommandManager.literal("structure").requires((commandSource) -> {
+			return commandSource.hasPermissionLevel(2);
+		})).then(CommandManager.literal("load").then(CommandManager.argument("name", IdentifierArgumentType.identifier()).then(CommandManager.argument("pos", BlockPosArgumentType.blockPos()).executes((context) -> {
 			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifier(context, "name"), BlockPosArgumentType.getBlockPos(context, "pos"), 0, "none", true);
 		}).then(CommandManager.argument("rotation", IntegerArgumentType.integer()).suggests(ROTATION_SUGGESTIONS).executes((context) -> {
 			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifier(context, "name"), BlockPosArgumentType.getBlockPos(context, "pos"), IntegerArgumentType.getInteger(context, "rotation"), "none", true);
@@ -58,7 +58,7 @@ public class StructureCommand {
 			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifier(context, "name"), BlockPosArgumentType.getBlockPos(context, "pos"), IntegerArgumentType.getInteger(context, "rotation"), StringArgumentType.getString(context, "mirror"), true);
 		}).then(CommandManager.argument("ignoreEntities", BoolArgumentType.bool()).executes((context) -> {
 			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifier(context, "name"), BlockPosArgumentType.getBlockPos(context, "pos"), IntegerArgumentType.getInteger(context, "rotation"), StringArgumentType.getString(context, "mirror"), BoolArgumentType.getBool(context, "ignoreEntities"));
-		}))))))).then(CommandManager.literal("save").then(CommandManager.argument("from", BlockPosArgumentType.create()).then(CommandManager.argument("to", BlockPosArgumentType.create()).then(CommandManager.argument("name", IdentifierArgumentType.create()).executes((context) -> {
+		}))))))).then(CommandManager.literal("save").then(CommandManager.argument("from", BlockPosArgumentType.blockPos()).then(CommandManager.argument("to", BlockPosArgumentType.blockPos()).then(CommandManager.argument("name", IdentifierArgumentType.identifier()).executes((context) -> {
 			return saveStructure(context.getSource(), BlockPosArgumentType.getBlockPos(context, "from"), BlockPosArgumentType.getBlockPos(context, "to"), IdentifierArgumentType.getIdentifier(context, "name"), true);
 		}).then(CommandManager.argument("ignoreEntities", BoolArgumentType.bool()).executes((context) -> {
 			return saveStructure(context.getSource(), BlockPosArgumentType.getBlockPos(context, "from"), BlockPosArgumentType.getBlockPos(context, "to"), IdentifierArgumentType.getIdentifier(context, "name"), BoolArgumentType.getBool(context, "ignoreEntities"));
@@ -69,47 +69,47 @@ public class StructureCommand {
 		int int_1 = 0;
 		World world = source.getWorld();
 		BlockPos offset = new BlockPos(0, 1, 0);
-		Rotation rotation;
+		BlockRotation rotation;
 		switch (rot) {
 			default:
 			case 0:
-				rotation = Rotation.ROT_0;
+				rotation = BlockRotation.NONE;
 				break;
 			case 90:
-				rotation = Rotation.ROT_90;
+				rotation = BlockRotation.CLOCKWISE_90;
 				break;
 			case 180:
-				rotation = Rotation.ROT_180;
+				rotation = BlockRotation.CLOCKWISE_180;
 				break;
 			case 270:
-				rotation = Rotation.ROT_270;
+				rotation = BlockRotation.COUNTERCLOCKWISE_90;
 				break;
 		}
-		Mirror mirror;
+		BlockMirror mirror;
 		switch (mir) {
 			default:
 			case "none":
-				mirror = Mirror.NONE;
+				mirror = BlockMirror.NONE;
 				break;
 			case "left_right":
-				mirror = Mirror.LEFT_RIGHT;
+				mirror = BlockMirror.LEFT_RIGHT;
 				break;
 			case "front_back":
-				mirror = Mirror.FRONT_BACK;
+				mirror = BlockMirror.FRONT_BACK;
 				break;
 		}
 		
 		if (!world.isClient && name != null) {
 			BlockPos pos_1 = pos;
 			BlockPos pos_2 = pos_1.add(offset);
-			ServerWorld serverWorld = (ServerWorld)world;
+			ServerWorld serverWorld = (ServerWorld) world;
 			StructureManager structureManager = serverWorld.getStructureManager();
 			Structure structure = structureManager.getStructure(name);
-			StructurePlacementData placementData = (new StructurePlacementData()).setMirrored(mirror).setRotation(rotation).setIgnoreEntities(ignoreEntities).setChunkPosition((ChunkPos)null);
+			StructurePlacementData placementData = new StructurePlacementData().setMirrored(mirror).setRotation(rotation).setIgnoreEntities(ignoreEntities).setChunkPosition((ChunkPos) null);
 			
 			if (structureManager.getStructure(name) != null) {
 				structure.place(world, pos_2, placementData);
-				source.sendFeedback(new TranslatableTextComponent("structure_block.load_success", new Object[]{name}), true);
+				source.sendFeedback(new TranslatableText("structure_block.load_success", new Object[]{name}), true);
 			} else {
 				throw STRUCTURE_NOT_FOUND_EXCEPTION.create(name);
 			}
@@ -137,7 +137,7 @@ public class StructureCommand {
 			if (structureManager.getStructure(name) != null) {
 				structure.method_15174(world, pos, size.add(1, 1, 1), !ignoreEntities, Blocks.STRUCTURE_VOID);
 				structureManager.saveStructure(name);
-				source.sendFeedback(new TranslatableTextComponent("structure_block.save_success", new Object[]{name}), true);
+				source.sendFeedback(new TranslatableText("structure_block.save_success", new Object[]{name}), true);
 			} else {
 				throw SAVE_FAILED_EXCEPTION.create(name);
 			}
