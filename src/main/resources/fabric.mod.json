@@ -12,6 +12,8 @@
         "sources": "https://github.com/YanisBft/HandyStructures",
         "issues": "https://github.com/YanisBft/HandyStructures/issues"
     },
+    "license": "GPLv3",
+    "icon": "assets/handystructures/icon.png",
     "environment": "*",
     "entrypoints": {
         "main": [
