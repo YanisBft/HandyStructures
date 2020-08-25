@@ -1,4 +1,4 @@
-package com.yanis48.handystructures.command;
+package com.yanisbft.handystructures.command;
 
 import java.util.Arrays;
 import java.util.Collection;

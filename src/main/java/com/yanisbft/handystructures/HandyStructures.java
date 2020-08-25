@@ -1,6 +1,6 @@
-package com.yanis48.handystructures;
+package com.yanisbft.handystructures;
 
-import com.yanis48.handystructures.command.StructureCommand;
+import com.yanisbft.handystructures.command.StructureCommand;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
