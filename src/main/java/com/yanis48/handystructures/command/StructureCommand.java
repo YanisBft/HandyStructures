@@ -2,6 +2,7 @@ package com.yanis48.handystructures.command;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Random;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
@@ -12,8 +13,8 @@ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 
 import net.minecraft.block.Blocks;
-import net.minecraft.command.arguments.BlockPosArgumentType;
-import net.minecraft.command.arguments.IdentifierArgumentType;
+import net.minecraft.command.argument.BlockPosArgumentType;
+import net.minecraft.command.argument.IdentifierArgumentType;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.CommandSource;
 import net.minecraft.server.command.ServerCommandSource;
@@ -67,7 +68,7 @@ public class StructureCommand {
 
 	public static int loadStructure(ServerCommandSource source, Identifier name, BlockPos pos, int rot, String mir, boolean ignoreEntities) throws CommandSyntaxException {
 		int int_1 = 0;
-		World world = source.getWorld();
+		ServerWorld world = source.getWorld();
 		BlockPos offset = new BlockPos(0, 1, 0);
 		BlockRotation rotation;
 		switch (rot) {
@@ -102,13 +103,12 @@ public class StructureCommand {
 		if (!world.isClient && name != null) {
 			BlockPos pos_1 = pos;
 			BlockPos pos_2 = pos_1.add(offset);
-			ServerWorld serverWorld = (ServerWorld) world;
-			StructureManager structureManager = serverWorld.getStructureManager();
+			StructureManager structureManager = world.getStructureManager();
 			Structure structure = structureManager.getStructure(name);
-			StructurePlacementData placementData = new StructurePlacementData().setMirrored(mirror).setRotation(rotation).setIgnoreEntities(ignoreEntities).setChunkPosition((ChunkPos) null);
+			StructurePlacementData placementData = new StructurePlacementData().setMirror(mirror).setRotation(rotation).setIgnoreEntities(ignoreEntities).setChunkPosition((ChunkPos) null);
 			
 			if (structureManager.getStructure(name) != null) {
-				structure.place(world, pos_2, placementData);
+				structure.place(world, pos_2, placementData, new Random(world.getSeed()));
 				source.sendFeedback(new TranslatableText("structure_block.load_success", new Object[]{name}), true);
 			} else {
 				throw STRUCTURE_NOT_FOUND_EXCEPTION.create(name);
@@ -135,7 +135,7 @@ public class StructureCommand {
 			Structure structure = structureManager.getStructureOrBlank(name);
 
 			if (structureManager.getStructure(name) != null) {
-				structure.method_15174(world, pos, size.add(1, 1, 1), !ignoreEntities, Blocks.STRUCTURE_VOID);
+				structure.saveFromWorld(world, pos, size.add(1, 1, 1), !ignoreEntities, Blocks.STRUCTURE_VOID);
 				structureManager.saveStructure(name);
 				source.sendFeedback(new TranslatableText("structure_block.save_success", new Object[]{name}), true);
 			} else {
