@@ -1,16 +1,19 @@
 package com.yanisbft.handystructures.command
 
 import com.mojang.brigadier.CommandDispatcher
-import com.mojang.brigadier.arguments.BoolArgumentType.*
-import com.mojang.brigadier.exceptions.CommandSyntaxException
+import com.mojang.brigadier.arguments.BoolArgumentType.bool
+import com.mojang.brigadier.arguments.BoolArgumentType.getBool
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType
 import net.minecraft.block.Blocks
 import net.minecraft.block.entity.BlockEntityType
 import net.minecraft.block.enums.StructureBlockMode
 import net.minecraft.command.CommandException
-import net.minecraft.command.argument.BlockPosArgumentType.*
-import net.minecraft.command.argument.IdentifierArgumentType.*
-import net.minecraft.server.command.CommandManager.*
+import net.minecraft.command.argument.BlockPosArgumentType.blockPos
+import net.minecraft.command.argument.BlockPosArgumentType.getBlockPos
+import net.minecraft.command.argument.IdentifierArgumentType.getIdentifier
+import net.minecraft.command.argument.IdentifierArgumentType.identifier
+import net.minecraft.server.command.CommandManager.argument
+import net.minecraft.server.command.CommandManager.literal
 import net.minecraft.server.command.ServerCommandSource
 import net.minecraft.server.world.ServerWorld
 import net.minecraft.text.Text
@@ -25,35 +28,43 @@ object StructureCommand {
     private val SAVE_FAILED_EXCEPTION = DynamicCommandExceptionType { name ->
         Text.translatable("structure_block.save_failure", name)
     }
+    
+    private object Keys {
+        const val FROM = "from"
+        const val TO = "to"
+        const val POS = "pos"
+        const val NAME = "name"
+        const val IGNORE_ENTITIES = "ignoreEntities"
+    }
 
     fun register(dispatcher: CommandDispatcher<ServerCommandSource>) {
         dispatcher.register(literal("structure")
             .requires { commandSource -> commandSource.hasPermissionLevel(2) }
             .then(
                 literal("block").then(
-                    argument("pos", blockPos()).executes { context ->
-                        saveFromStructureBlock(context.source, getBlockPos(context, "pos")); 0
+                    argument(Keys.POS, blockPos()).executes { context ->
+                        saveFromStructureBlock(context.source, getBlockPos(context, Keys.POS)); 0
                     }
                 )
             ).then(
-                argument("from", blockPos()).then(
-                    argument("to", blockPos()).then(
-                        argument("name", identifier()).executes { context ->
+                argument(Keys.FROM, blockPos()).then(
+                    argument(Keys.TO, blockPos()).then(
+                        argument(Keys.NAME, identifier()).executes { context ->
                             saveStructure(
                                 context.source,
-                                getBlockPos(context, "from"),
-                                getBlockPos(context, "to"),
-                                getIdentifier(context, "name"),
+                                getBlockPos(context, Keys.FROM),
+                                getBlockPos(context, Keys.TO),
+                                getIdentifier(context, Keys.NAME),
                                 true
                             ); 0
                         }.then(
-                            argument("ignoreEntities", bool()).executes { context ->
+                            argument(Keys.IGNORE_ENTITIES, bool()).executes { context ->
                                 saveStructure(
                                     context.source,
-                                    getBlockPos(context, "from"),
-                                    getBlockPos(context, "to"),
-                                    getIdentifier(context, "name"),
-                                    getBool(context, "ignoreEntities")
+                                    getBlockPos(context, Keys.FROM),
+                                    getBlockPos(context, Keys.TO),
+                                    getIdentifier(context, Keys.NAME),
+                                    getBool(context, Keys.IGNORE_ENTITIES)
                                 ); 0
                             }
                         )
