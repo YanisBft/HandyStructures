@@ -1,147 +1,131 @@
 package com.yanisbft.handystructures.command;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Random;
-
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.BoolArgumentType;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
-import com.mojang.brigadier.suggestion.SuggestionProvider;
-
 import net.minecraft.block.Blocks;
-import net.minecraft.command.argument.BlockPosArgumentType;
-import net.minecraft.command.argument.IdentifierArgumentType;
-import net.minecraft.server.command.CommandManager;
-import net.minecraft.server.command.CommandSource;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.block.enums.StructureBlockMode;
+import net.minecraft.command.CommandException;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.structure.Structure;
-import net.minecraft.structure.StructureManager;
-import net.minecraft.structure.StructurePlacementData;
-import net.minecraft.text.TranslatableText;
-import net.minecraft.util.BlockMirror;
-import net.minecraft.util.BlockRotation;
+import net.minecraft.structure.StructureTemplateManager;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.world.World;
+
+import static com.mojang.brigadier.arguments.BoolArgumentType.bool;
+import static com.mojang.brigadier.arguments.BoolArgumentType.getBool;
+import static net.minecraft.command.argument.BlockPosArgumentType.blockPos;
+import static net.minecraft.command.argument.BlockPosArgumentType.getBlockPos;
+import static net.minecraft.command.argument.IdentifierArgumentType.getIdentifier;
+import static net.minecraft.command.argument.IdentifierArgumentType.identifier;
+import static net.minecraft.server.command.CommandManager.argument;
+import static net.minecraft.server.command.CommandManager.literal;
 
 public class StructureCommand {
-	public static final DynamicCommandExceptionType STRUCTURE_NOT_FOUND_EXCEPTION = new DynamicCommandExceptionType((name) -> {
-		return new TranslatableText("structure_block.load_not_found", new Object[]{name});
-	});
-	public static final DynamicCommandExceptionType SAVE_FAILED_EXCEPTION = new DynamicCommandExceptionType((name) -> {
-		return new TranslatableText("structure_block.save_failure", new Object[]{name});
-	});
-	
-	public static final SuggestionProvider<ServerCommandSource> ROTATION_SUGGESTIONS = (commandContext, suggestionsBuilder) -> {
-		Collection<String> ROTATIONS = Arrays.asList("0", "90", "180", "270");
-		return CommandSource.suggestMatching(ROTATIONS, suggestionsBuilder);
-	};
-	
-	public static final SuggestionProvider<ServerCommandSource> MIRROR_SUGGESTIONS = (commandContext, suggestionsBuilder) -> {
-		Collection<String> MIRRORS = Arrays.asList("front_back", "left_right", "none");
-		return CommandSource.suggestMatching(MIRRORS, suggestionsBuilder);
-	};
-	
-	public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-		dispatcher.register((CommandManager.literal("structure").requires((commandSource) -> {
-			return commandSource.hasPermissionLevel(2);
-		})).then(CommandManager.literal("load").then(CommandManager.argument("name", IdentifierArgumentType.identifier()).then(CommandManager.argument("pos", BlockPosArgumentType.blockPos()).executes((context) -> {
-			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifier(context, "name"), BlockPosArgumentType.getBlockPos(context, "pos"), 0, "none", true);
-		}).then(CommandManager.argument("rotation", IntegerArgumentType.integer()).suggests(ROTATION_SUGGESTIONS).executes((context) -> {
-			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifier(context, "name"), BlockPosArgumentType.getBlockPos(context, "pos"), IntegerArgumentType.getInteger(context, "rotation"), "none", true);
-		}).then(CommandManager.argument("mirror", StringArgumentType.string()).suggests(MIRROR_SUGGESTIONS).executes((context) -> {
-			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifier(context, "name"), BlockPosArgumentType.getBlockPos(context, "pos"), IntegerArgumentType.getInteger(context, "rotation"), StringArgumentType.getString(context, "mirror"), true);
-		}).then(CommandManager.argument("ignoreEntities", BoolArgumentType.bool()).executes((context) -> {
-			return loadStructure(context.getSource(), IdentifierArgumentType.getIdentifier(context, "name"), BlockPosArgumentType.getBlockPos(context, "pos"), IntegerArgumentType.getInteger(context, "rotation"), StringArgumentType.getString(context, "mirror"), BoolArgumentType.getBool(context, "ignoreEntities"));
-		}))))))).then(CommandManager.literal("save").then(CommandManager.argument("from", BlockPosArgumentType.blockPos()).then(CommandManager.argument("to", BlockPosArgumentType.blockPos()).then(CommandManager.argument("name", IdentifierArgumentType.identifier()).executes((context) -> {
-			return saveStructure(context.getSource(), BlockPosArgumentType.getBlockPos(context, "from"), BlockPosArgumentType.getBlockPos(context, "to"), IdentifierArgumentType.getIdentifier(context, "name"), true);
-		}).then(CommandManager.argument("ignoreEntities", BoolArgumentType.bool()).executes((context) -> {
-			return saveStructure(context.getSource(), BlockPosArgumentType.getBlockPos(context, "from"), BlockPosArgumentType.getBlockPos(context, "to"), IdentifierArgumentType.getIdentifier(context, "name"), BoolArgumentType.getBool(context, "ignoreEntities"));
-		})))))));
-	}
+    public static final DynamicCommandExceptionType SAVE_FAILED_EXCEPTION = new DynamicCommandExceptionType(
+        (name) -> Text.translatable("structure_block.save_failure", name)
+    );
 
-	public static int loadStructure(ServerCommandSource source, Identifier name, BlockPos pos, int rot, String mir, boolean ignoreEntities) throws CommandSyntaxException {
-		int int_1 = 0;
-		ServerWorld world = source.getWorld();
-		BlockPos offset = new BlockPos(0, 1, 0);
-		BlockRotation rotation;
-		switch (rot) {
-			default:
-			case 0:
-				rotation = BlockRotation.NONE;
-				break;
-			case 90:
-				rotation = BlockRotation.CLOCKWISE_90;
-				break;
-			case 180:
-				rotation = BlockRotation.CLOCKWISE_180;
-				break;
-			case 270:
-				rotation = BlockRotation.COUNTERCLOCKWISE_90;
-				break;
-		}
-		BlockMirror mirror;
-		switch (mir) {
-			default:
-			case "none":
-				mirror = BlockMirror.NONE;
-				break;
-			case "left_right":
-				mirror = BlockMirror.LEFT_RIGHT;
-				break;
-			case "front_back":
-				mirror = BlockMirror.FRONT_BACK;
-				break;
-		}
-		
-		if (!world.isClient && name != null) {
-			BlockPos pos_1 = pos;
-			BlockPos pos_2 = pos_1.add(offset);
-			StructureManager structureManager = world.getStructureManager();
-			Structure structure = structureManager.getStructure(name);
-			StructurePlacementData placementData = new StructurePlacementData().setMirror(mirror).setRotation(rotation).setIgnoreEntities(ignoreEntities).setChunkPosition((ChunkPos) null);
-			
-			if (structureManager.getStructure(name) != null) {
-				structure.place(world, pos_2, placementData, new Random(world.getSeed()));
-				source.sendFeedback(new TranslatableText("structure_block.load_success", new Object[]{name}), true);
-			} else {
-				throw STRUCTURE_NOT_FOUND_EXCEPTION.create(name);
-			}
-		}
-		return int_1;
-	}
+    public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+        dispatcher.register((literal("structure").requires(
+            (commandSource) -> commandSource.hasPermissionLevel(2))
+        ).then(
+            literal("block").then(
+                argument("pos", blockPos())
+                .executes((context) -> saveFromStructureBlock(
+                    context.getSource(),
+                    getBlockPos(context, "pos")
+                ))
+            )
+        ).then(
+            argument("from", blockPos())
+            .then(
+                argument("to", blockPos())
+                .then(
+                    argument("name", identifier())
+                    .executes((context) -> saveStructure(
+                        context.getSource(),
+                        getBlockPos(context, "from"),
+                        getBlockPos(context, "to"),
+                        getIdentifier(context, "name"),
+                        true
+                    )).then(
+                        argument("ignoreEntities", bool())
+                        .executes((context) -> saveStructure(
+                            context.getSource(),
+                            getBlockPos(context, "from"),
+                            getBlockPos(context, "to"),
+                            getIdentifier(context, "name"),
+                            getBool(context, "ignoreEntities")
+                        ))
+                    )
+                )
+            )
+        ));
+    }
 
-	public static int saveStructure(ServerCommandSource source, BlockPos from, BlockPos to, Identifier name, boolean ignoreEntities) throws CommandSyntaxException {
-		int int_1 = 0;		
-		World world = source.getWorld();
-		int x1 = from.getX() < to.getX() ? from.getX() : to.getX();
-		int y1 = from.getY() < to.getY() ? from.getY() : to.getY();
-		int z1 = from.getZ() < to.getZ() ? from.getZ() : to.getZ();
-		BlockPos pos = new BlockPos(x1, y1, z1);
-		int x2 = from.getX() < to.getX() ? to.getX() - from.getX() : from.getX() - to.getX();
-		int y2 = from.getY() < to.getY() ? to.getY() - from.getY() : from.getY() - to.getY();
-		int z2 = from.getZ() < to.getZ() ? to.getZ() - from.getZ() : from.getZ() - to.getZ();
-		BlockPos size = new BlockPos(x2, y2, z2);
-		
-		if (!world.isClient && name != null) {
-			ServerWorld serverWorld = (ServerWorld)world;
-			StructureManager structureManager = serverWorld.getStructureManager();
-			Structure structure = structureManager.getStructureOrBlank(name);
+    public static int saveStructure(ServerCommandSource source, BlockPos from, BlockPos to, Identifier name, boolean ignoreEntities) throws CommandSyntaxException {
+        ServerWorld world = source.getWorld();
+        if (world.isClient)
+            return 0;
 
-			if (structureManager.getStructure(name) != null) {
-				structure.saveFromWorld(world, pos, size.add(1, 1, 1), !ignoreEntities, Blocks.STRUCTURE_VOID);
-				structureManager.saveStructure(name);
-				source.sendFeedback(new TranslatableText("structure_block.save_success", new Object[]{name}), true);
-			} else {
-				throw SAVE_FAILED_EXCEPTION.create(name);
-			}
-		}
-		return int_1;
-	}
+        BlockPos pos = new BlockPos(
+            Math.min(from.getX(), to.getX()),
+            Math.min(from.getY(), to.getY()),
+            Math.min(from.getZ(), to.getZ())
+        );
+
+        BlockPos size = new BlockPos(
+            Math.abs(from.getX() - to.getX()) + 1,
+            Math.abs(from.getY() - to.getY()) + 1,
+            Math.abs(from.getZ() - to.getZ()) + 1
+        );
+
+        if(_saveStructure(world, pos, size, name, ignoreEntities))
+            source.sendFeedback(() -> Text.translatable("structure_block.save_success", name), true);
+        else
+            throw SAVE_FAILED_EXCEPTION.create(name);
+
+        return 0;
+    }
+
+    public static int saveFromStructureBlock(ServerCommandSource source, BlockPos pos) throws CommandException, CommandSyntaxException {
+        ServerWorld world = source.getWorld();
+        if (world.isClient)
+            return 0;
+
+        var blockOrEmpty = world.getBlockEntity(pos, BlockEntityType.STRUCTURE_BLOCK);
+        if (blockOrEmpty.isEmpty() || blockOrEmpty.get().getMode() != StructureBlockMode.SAVE)
+            throw new CommandException(Text.translatable("parsing.expected", "minecraft:structure_block[mode=save]"));
+        var block = blockOrEmpty.get();
+
+        if (!block.hasStructureName())
+            throw new CommandException(Text.translatable("structure_block.invalid_structure_name", ""));
+
+        if (block.getSize().getX() <= 0 || block.getSize().getY() <= 0 || block.getSize().getZ() <= 0)
+            throw SAVE_FAILED_EXCEPTION.create(block.getTemplateName());
+
+        if (block.saveStructure())
+            source.sendFeedback(() -> Text.translatable("structure_block.save_success", block.getTemplateName()), true);
+        else
+            throw SAVE_FAILED_EXCEPTION.create(block.getTemplateName());
+
+        return 0;
+    }
+
+    private static boolean _saveStructure(
+        ServerWorld world, BlockPos pos, BlockPos size,
+        Identifier name, boolean ignoreEntities
+    ) {
+        if (name == null)
+            return false;
+
+        StructureTemplateManager structureManager = world.getStructureTemplateManager();
+        var structure = structureManager.getTemplateOrBlank(name);
+        structure.saveFromWorld(world, pos, size, !ignoreEntities, Blocks.STRUCTURE_VOID);
+        structureManager.saveTemplate(name);
+        return structureManager.getTemplate(name).isPresent();
+    }
 }
