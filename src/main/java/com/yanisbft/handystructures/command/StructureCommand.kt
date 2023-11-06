@@ -24,11 +24,15 @@ import kotlin.math.min
 
 
 object StructureCommand {
-    private const val STRUCTURE_BLOCK_SAVE = "minecraft:structure_block[mode=save]"
+    private const val STRUCTURE_BLOCK = "minecraft:structure_block"
+    private const val STRUCTURE_BLOCK_SAVE = "$STRUCTURE_BLOCK[mode=save]"
     private val SAVE_FAILED_EXCEPTION = DynamicCommandExceptionType { name ->
         Text.translatable("structure_block.save_failure", name)
     }
-    
+    private val STRUCTURE_NOT_FOUND_EXCEPTION = DynamicCommandExceptionType { name ->
+        Text.translatable("structure_block.load_not_found", name)
+    }
+
     private object Keys {
         const val FROM = "from"
         const val TO = "to"
@@ -38,36 +42,60 @@ object StructureCommand {
     }
 
     fun register(dispatcher: CommandDispatcher<ServerCommandSource>) {
+        val structuresSuggestionsProvider = StructureIdentifierSuggestionProvider(Keys.NAME)
         dispatcher.register(literal("structure")
             .requires { commandSource -> commandSource.hasPermissionLevel(2) }
             .then(
-                literal("block").then(
-                    argument(Keys.POS, blockPos()).executes { context ->
-                        saveFromStructureBlock(context.source, getBlockPos(context, Keys.POS)); 0
-                    }
-                )
-            ).then(
-                argument(Keys.FROM, blockPos()).then(
-                    argument(Keys.TO, blockPos()).then(
-                        argument(Keys.NAME, identifier()).executes { context ->
-                            saveStructure(
-                                context.source,
-                                getBlockPos(context, Keys.FROM),
-                                getBlockPos(context, Keys.TO),
-                                getIdentifier(context, Keys.NAME),
-                                true
-                            ); 0
-                        }.then(
-                            argument(Keys.IGNORE_ENTITIES, bool()).executes { context ->
+                literal("save")
+                .then(
+                    literal("block").then(
+                        argument(Keys.POS, blockPos()).executes { context ->
+                            saveFromStructureBlock(context.source, getBlockPos(context, Keys.POS)); 0
+                        }
+                    )
+                ).then(
+                    argument(Keys.FROM, blockPos()).then(
+                        argument(Keys.TO, blockPos()).then(
+                            argument(Keys.NAME, identifier())
+                            .suggests(structuresSuggestionsProvider)
+                            .executes { context ->
                                 saveStructure(
                                     context.source,
                                     getBlockPos(context, Keys.FROM),
                                     getBlockPos(context, Keys.TO),
                                     getIdentifier(context, Keys.NAME),
-                                    getBool(context, Keys.IGNORE_ENTITIES)
+                                    true
                                 ); 0
-                            }
+                            }.then(
+                                argument(Keys.IGNORE_ENTITIES, bool()).executes { context ->
+                                    saveStructure(
+                                        context.source,
+                                        getBlockPos(context, Keys.FROM),
+                                        getBlockPos(context, Keys.TO),
+                                        getIdentifier(context, Keys.NAME),
+                                        getBool(context, Keys.IGNORE_ENTITIES)
+                                    ); 0
+                                }
+                            )
                         )
+                    )
+                )
+            )
+            .then(
+                literal("remove")
+                .then(argument(Keys.NAME, identifier())
+                .suggests(structuresSuggestionsProvider)
+                .executes { context ->
+                    removeStructure(
+                        context.source,
+                        getIdentifier(context, Keys.NAME),
+                    ); 0
+                })
+                .then(
+                    literal("block").then(
+                        argument(Keys.POS, blockPos()).executes { context ->
+                            removeStructureFromBlock(context.source, getBlockPos(context, Keys.POS)); 0
+                        }
                     )
                 )
             )
@@ -130,5 +158,33 @@ object StructureCommand {
         structure.saveFromWorld(world, pos, size, !ignoreEntities, Blocks.STRUCTURE_VOID)
         structureManager.saveTemplate(name)
         return structureManager.getTemplate(name).isPresent
+    }
+
+    fun removeStructureFromBlock(source: ServerCommandSource, pos: BlockPos) {
+        val world = source.world
+        if (world.isClient) return
+        val blockOrEmpty = world.getBlockEntity(pos, BlockEntityType.STRUCTURE_BLOCK)
+        if (blockOrEmpty.isEmpty)
+            throw CommandException(Text.translatable("parsing.expected", STRUCTURE_BLOCK))
+        val block = blockOrEmpty.get()
+
+        val name = Identifier.tryParse(block.templateName)
+            ?: throw CommandException(Text.translatable("structure_block.invalid_structure_name", ""))
+
+        removeStructure(source, name)
+    }
+
+    fun removeStructure(source: ServerCommandSource, name: Identifier) {
+        val world = source.world
+        if (world.isClient) return
+        val structureManager = world.structureTemplateManager
+        if (!structureManager.getTemplate(name).isPresent)
+            throw STRUCTURE_NOT_FOUND_EXCEPTION.create(name)
+        structureManager.getTemplatePath(name, ".nbt").toFile().delete()
+        structureManager.unloadTemplate(name)
+        source.sendFeedback(
+            { Text.literal("Structure ").append(name.toString()).append(" removed!") },
+            true
+        )
     }
 }
