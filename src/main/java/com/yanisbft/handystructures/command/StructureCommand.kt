@@ -19,9 +19,16 @@ import net.minecraft.server.world.ServerWorld
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.math.BlockPos
+import java.io.File
 import kotlin.math.abs
 import kotlin.math.min
 
+
+private fun File.isEmpty(exclude: File): Boolean {
+    for (file in walkTopDown().filter { it == exclude })
+        return false
+    return true
+}
 
 object StructureCommand {
     private const val STRUCTURE_BLOCK = "minecraft:structure_block"
@@ -180,7 +187,15 @@ object StructureCommand {
         val structureManager = world.structureTemplateManager
         if (!structureManager.getTemplate(name).isPresent)
             throw STRUCTURE_NOT_FOUND_EXCEPTION.create(name)
-        structureManager.getTemplatePath(name, ".nbt").toFile().delete()
+
+        var path = structureManager.getTemplatePath(name, ".nbt").toFile()
+        var prevPath: File
+        do {
+            prevPath = path
+            path.delete()
+            path = path.parentFile
+        } while (path.isEmpty(prevPath) && !(path.endsWith("generated") && path.isDirectory))
+
         structureManager.unloadTemplate(name)
         source.sendFeedback(
             { Text.literal("Structure ").append(name.toString()).append(" removed!") },
