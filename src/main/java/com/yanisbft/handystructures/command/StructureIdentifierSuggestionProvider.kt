@@ -6,6 +6,7 @@ import com.mojang.brigadier.suggestion.Suggestions
 import com.mojang.brigadier.suggestion.SuggestionsBuilder
 import net.minecraft.command.argument.IdentifierArgumentType
 import net.minecraft.server.command.ServerCommandSource
+import net.minecraft.util.Identifier
 import java.util.concurrent.CompletableFuture
 import kotlin.io.path.exists
 
@@ -23,15 +24,18 @@ class StructureIdentifierSuggestionProvider(
                 // Which is not true. So we can leave only player created ones
                 structureManager.getTemplatePath(it, ".nbt").exists()
             }
-            .map { it.toString() }
             .filter {
                 try {
-                    it.contains(IdentifierArgumentType.getIdentifier(context, fieldName).toString())
+                    val id = IdentifierArgumentType.getIdentifier(context, fieldName)
+                    if (id.namespace == Identifier.DEFAULT_NAMESPACE)
+                        it.toString().contains(id.path)
+                    else
+                        it.namespace == id.namespace && it.path.contains(id.path)
                 } catch (_: IllegalArgumentException) {
                     true
                 }
             }
-            .forEach { builder.suggest(it) }
+            .forEach { builder.suggest(it.toString()) }
         return builder.buildFuture()
     }
 }
